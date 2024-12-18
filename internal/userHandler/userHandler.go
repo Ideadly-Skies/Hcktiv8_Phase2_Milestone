@@ -138,8 +138,8 @@ func RegisterAdmin(c echo.Context) error {
 	}
 
     return c.JSON(http.StatusOK, map[string]interface{}{
-        "message": fmt.Sprintf(`Admin %s registered successfully`,req.Name),
-        "email": req.Email,
+        "message": fmt.Sprintf(`Admin %s registered successfully`,req.Username),
+        "username": req.Username,
     })
 }
 
