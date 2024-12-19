@@ -98,6 +98,17 @@ func RentComputer(c echo.Context) error {
         if err != nil {
             return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to deduct wallet balance"})
         }
+
+        // Log wallet payment in transaction table
+        transactionQuery := `
+            INSERT INTO transaction (customer_id, transaction_type, amount, transaction_method, status, transaction_date)
+            VALUES ($1, 'Rental Payment', $2, 'Wallet', 'Settlement', NOW())`
+        
+        _, txnErr := config.Pool.Exec(context.Background(), transactionQuery, req.CustomerID, totalCost)
+        if txnErr != nil {
+            return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log transaction"})
+        }
+        
     } else if paymentMethod == "gopay" {
         // Create payment request via GoPay
         orderID := fmt.Sprintf("rental-%d-%d", req.CustomerID, time.Now().Unix())
@@ -123,10 +134,12 @@ func RentComputer(c echo.Context) error {
 			INSERT INTO transaction (customer_id, transaction_type, amount, transaction_method, status, payment_url, order_id, metadata)
 			VALUES ($1, 'Rental Payment', $2, 'GoPay', 'Pending', $3, $4, $5)`
 		metadata := map[string]interface{}{
+            "admin_id": adminID,
 			"computer_id":   req.ComputerID,
 			"rental_start":  req.RentalStart,
 			"rental_end":    req.RentalEnd,
 			"activity_desc": req.ActivityDesc,
+            "total_cost": totalCost,
 		}
 		_, txnErr := config.Pool.Exec(context.Background(), transactionQuery, req.CustomerID, totalCost, resp.Actions[0].URL, orderID, metadata)
 		if txnErr != nil {
@@ -153,10 +166,10 @@ func RentComputer(c echo.Context) error {
     }
 
     // Log rental activity
-    logQuery := `
-        INSERT INTO log (customer_id, computer_id, login_time, logout_time, activity_description)
-        VALUES ($1, $2, $3, $4, $5)`
-    _, err = config.Pool.Exec(context.Background(), logQuery, req.CustomerID, req.ComputerID, req.RentalStart, req.RentalEnd, req.ActivityDesc)
+    desc := fmt.Sprintf("Rental payment completed for Customer %d, with Computer %d from %s to %s. Activity: %s",
+    req.CustomerID, req.ComputerID, req.RentalStart.Format("2006-01-02 15:04:05"), req.RentalEnd.Format("2006-01-02 15:04:05"), req.ActivityDesc)
+    logQuery := `INSERT INTO log (description) VALUES ($1)`
+    _, err = config.Pool.Exec(context.Background(), logQuery, desc)
     if err != nil {
         return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log rental activity"})
     }
@@ -164,16 +177,55 @@ func RentComputer(c echo.Context) error {
     // Log additional services if any
     if len(req.Services) > 0 {
         for _, service := range req.Services {
+            // Check available quantity of the service
+            var availableQuantity int
+            checkQuantityQuery := "SELECT quantity FROM service WHERE id = $1"
+            err := config.Pool.QueryRow(context.Background(), checkQuantityQuery, service.ServiceID).Scan(&availableQuantity)
+            if err != nil {
+                return c.JSON(http.StatusInternalServerError, map[string]string{
+                    "message": fmt.Sprintf("Failed to check quantity for Service ID %d", service.ServiceID),
+                })
+            }
+
+            // Ensure the requested quantity does not exceed the available quantity
+            if service.Quantity > availableQuantity {
+                return c.JSON(http.StatusBadRequest, map[string]string{
+                    "message": fmt.Sprintf("Insufficient stock for Service ID %d. Available: %d, Requested: %d",
+                        service.ServiceID, availableQuantity, service.Quantity),
+                })
+            }
+
+            // Deduct the requested quantity from the service
+            deductQuantityQuery := "UPDATE service SET quantity = quantity - $1 WHERE id = $2"
+            _, err = config.Pool.Exec(context.Background(), deductQuantityQuery, service.Quantity, service.ServiceID)
+            if err != nil {
+                return c.JSON(http.StatusInternalServerError, map[string]string{
+                    "message": fmt.Sprintf("Failed to update quantity for Service ID %d", service.ServiceID),
+                })
+            }
+
+            // Insert into rental_services table
             serviceQuery := `
                 INSERT INTO rental_services (rental_history_id, service_id, quantity)
                 VALUES ($1, $2, $3)`
             _, err = config.Pool.Exec(context.Background(), serviceQuery, rentalHistoryID, service.ServiceID, service.Quantity)
             if err != nil {
-                return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log additional services"})
+                return c.JSON(http.StatusInternalServerError, map[string]string{
+                    "message": fmt.Sprintf("Failed to log service ID %d", service.ServiceID),
+                })
+            }
+
+            // Log the service details in the Log table
+            serviceDesc := fmt.Sprintf("Service added for Rental %d: Service ID %d with Quantity %d",
+                rentalHistoryID, service.ServiceID, service.Quantity)
+            logQuery := `INSERT INTO log (description) VALUES ($1)`
+            _, err = config.Pool.Exec(context.Background(), logQuery, serviceDesc)
+            if err != nil {
+                return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log service details"})
             }
         }
     }
-
+ 
     // Update computer availability
     updateComputerQuery := "UPDATE computer SET isAvailable = FALSE WHERE id = $1"
     _, err = config.Pool.Exec(context.Background(), updateComputerQuery, req.ComputerID)

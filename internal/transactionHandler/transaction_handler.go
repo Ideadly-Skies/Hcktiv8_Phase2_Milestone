@@ -58,7 +58,7 @@ func GetWalletBalance(c echo.Context) error {
 	return c.JSON(http.StatusOK, WalletBalanceResponse{Balance: balance})
 }
 
-// Create Payment Request (Top-Up or Rental Payment)
+// Create Payment Request (Made for Top-up payment) 
 func CreatePayment(c echo.Context) error {
 	// Initialize Midtrans
 	Init()
@@ -176,7 +176,7 @@ func CheckPaymentStatus(c echo.Context) error {
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to fetch rental metadata"})
 			}
-		
+			
 			// Deserialize JSON into a map
 			var metadata map[string]interface{}
 			err = json.Unmarshal([]byte(metadataJSON), &metadata)
@@ -187,6 +187,14 @@ func CheckPaymentStatus(c echo.Context) error {
 			// fmt.Println("second err: ", err)	
 
 			// Validate and convert metadata fields
+			adminID, ok := metadata["admin_id"].(float64) // JSON numbers are float64 in Go
+			
+			// fmt.Println("third err: ", ok)				
+
+			if !ok {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Invalid admin_id in metadata"})
+			}
+
 			computerID, ok := metadata["computer_id"].(float64) // JSON numbers are float64 in Go
 			
 			// fmt.Println("third err: ", ok)				
@@ -211,27 +219,65 @@ func CheckPaymentStatus(c echo.Context) error {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Invalid rental_end in metadata"})
 			}
 			
-			activityDesc, ok := metadata["activity_desc"].(string)
-			
-			// fmt.Println("sixth err: ", ok)
-			
+			totalCost, ok := metadata["total_cost"].(float64)
 			if !ok {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Invalid activity_desc in metadata"})
 			}
 		
-			// Log rental activity
-			logQuery := `
-				INSERT INTO log (customer_id, computer_id, login_time, logout_time, activity_description)
-				VALUES ($1, $2, $3, $4, $5)`
-			_, err = config.Pool.Exec(context.Background(), logQuery, 
-				customerID, int(computerID), rentalStart, rentalEnd, activityDesc)
+			// Update rental history
+			rentalHistoryQuery := `
+			INSERT INTO rental_history (customer_id, computer_id, admin_id, rental_start_time, rental_end_time, total_cost, booking_status)
+			VALUES ($1, $2, $3, $4, $5, $6, 'Completed')`
 			
-			// fmt.Println("seventh err: ", err)
+			_, err = config.Pool.Exec(context.Background(), rentalHistoryQuery,
+				customerID, int(computerID), adminID, rentalStart, rentalEnd, totalCost)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to update rental history"})
+			}
+	
+			// Update PC availability
+			updatePCQuery := `UPDATE computer SET isAvailable = FALSE WHERE id = $1`
+			_, err = config.Pool.Exec(context.Background(), updatePCQuery, int(computerID))
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to update computer availability"})
+			}
+		
+			// Log general activity in the log table
+			desc := fmt.Sprintf("Rental payment completed for Customer %d, with Computer %d", customerID, int(computerID))
+			logQuery := `INSERT INTO log (description) VALUES ($1)`
+			_, err = config.Pool.Exec(context.Background(), logQuery, desc)
 			
 			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log rental activity"})
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log activity"})
 			}
-		} 
+		} else if transactionType == "Service Payment" {
+
+			// Fetch metadata for deferred service deduction
+			var metadataJSON string
+			metadataQuery := `SELECT metadata FROM transaction WHERE order_id = $1`
+			err := config.Pool.QueryRow(context.Background(), metadataQuery, orderID).Scan(&metadataJSON)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to fetch metadata"})
+			}
+		
+			var metadata []map[string]interface{}
+			err = json.Unmarshal([]byte(metadataJSON), &metadata)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to parse metadata"})
+			}
+		
+			// Deduct service quantities
+			for _, service := range metadata {
+				serviceID := int(service["service_id"].(float64))
+				quantity := int(service["quantity"].(float64))
+		
+				updateQuantityQuery := "UPDATE service SET quantity = quantity - $1 WHERE id = $2"
+				_, err = config.Pool.Exec(context.Background(), updateQuantityQuery, quantity, serviceID)
+				if err != nil {
+					return c.JSON(http.StatusInternalServerError, map[string]string{"message": fmt.Sprintf("Failed to update quantity for Service ID %d", serviceID)})
+				}
+			}
+		}
 	}
 
 	return c.JSON(http.StatusOK, resp)

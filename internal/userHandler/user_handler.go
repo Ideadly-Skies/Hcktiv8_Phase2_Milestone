@@ -100,6 +100,14 @@ func RegisterCustomer(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
 	}
 
+	// Log the registration
+	logDesc := fmt.Sprintf("Customer %s (ID: %d) registered successfully", req.Name, customerID)
+	logQuery := `INSERT INTO log (description) VALUES ($1)`
+	_, logErr := config.Pool.Exec(context.Background(), logQuery, logDesc)
+	if logErr != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log registration"})
+	}
+
     return c.JSON(http.StatusOK, map[string]interface{}{
         "message": fmt.Sprintf(`User %s registered successfully`,req.Name),
         "email": req.Email,
@@ -143,6 +151,14 @@ func LoginCustomer(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to update token"})
 	}
 
+	// Log the login
+    logDesc := fmt.Sprintf("Customer %d logged in successfully", customer.ID)
+    logQuery := `INSERT INTO log (description) VALUES ($1)`
+    _, logErr := config.Pool.Exec(context.Background(), logQuery, logDesc)
+    if logErr != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log login"})
+    }
+
 	// return ok status and login response
 	return c.JSON(http.StatusOK, LoginResponse{Token: tokenString})
 }
@@ -181,6 +197,14 @@ func RegisterAdmin(c echo.Context) error {
 		}
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
 	}
+
+	// Log the registration
+    logDesc := fmt.Sprintf("Admin %s (ID: %d) registered successfully", req.Username, adminID)
+    logQuery := `INSERT INTO log (description) VALUES ($1)`
+    _, logErr := config.Pool.Exec(context.Background(), logQuery, logDesc)
+    if logErr != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log registration"})
+    }
 
     return c.JSON(http.StatusOK, map[string]interface{}{
         "message": fmt.Sprintf(`Admin %s registered successfully`,req.Username),
@@ -225,6 +249,14 @@ func LoginAdmin(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to update token"})
 	}
+
+	// Log the login
+    logDesc := fmt.Sprintf("Admin %d logged in successfully", admin.ID)
+    logQuery := `INSERT INTO log (description) VALUES ($1)`
+    _, logErr := config.Pool.Exec(context.Background(), logQuery, logDesc)
+    if logErr != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log login"})
+    }
 
 	// return ok status and login response
 	return c.JSON(http.StatusOK, LoginResponse{Token: tokenString})

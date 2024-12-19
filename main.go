@@ -7,6 +7,7 @@ import (
 	transaction_handler "w4/p2/milestones/internal/transactionHandler"
 	rental_handler "w4/p2/milestones/internal/rentalHandler"
 	report_handler "w4/p2/milestones/internal/reportHandler"	
+	service_handler "w4/p2/milestones/internal/serviceHandler"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -46,6 +47,7 @@ func main(){
 	adminGroup.Use(cust_middleware.JWTMiddleware)
 
 	adminGroup.POST("/rental", rental_handler.RentComputer)
+	adminGroup.POST("/service/purchase", service_handler.PurchaseService)
 
 	// start the server at 8080
 	e.Logger.Fatal(e.Start(":8080"))

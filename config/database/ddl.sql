@@ -75,13 +75,7 @@ CREATE TABLE Transaction (
 -- 6. Log Table
 CREATE TABLE Log (
     id SERIAL PRIMARY KEY,
-    customer_id INTEGER NOT NULL,
-    computer_id INTEGER NOT NULL,
-    login_time TIMESTAMP NOT NULL,
-    logout_time TIMESTAMP,
-    activity_description VARCHAR(250),
-    FOREIGN KEY (customer_id) REFERENCES Customer(id),
-    FOREIGN KEY (computer_id) REFERENCES Computer(id)
+    description varchar(250) 
 );
 
 -- 7. Service Table
@@ -90,6 +84,7 @@ CREATE TABLE Service (
     name VARCHAR(100) NOT NULL,
     price DOUBLE PRECISION NOT NULL,
     description VARCHAR(250),
+    quantity INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -134,7 +129,24 @@ INSERT INTO Computer (name, type, isAvailable, hourly_rate, last_maintenance_dat
 VALUES 
 ('PC-001', 'Gaming', TRUE, 20000, '2024-12-01 10:00:00'),
 ('PC-002', 'Office', TRUE, 10000, '2024-12-05 12:00:00'),
-('PC-003', 'Browsing', FALSE, 5000, '2024-12-10 09:00:00');
+('PC-003', 'Browsing', FALSE, 5000, '2024-12-10 09:00:00'),
+('PC-004', 'Gaming', TRUE, 25000, '2024-12-15 11:00:00'),
+('PC-005', 'Office', TRUE, 12000, '2024-12-12 08:00:00'),
+('PC-006', 'Browsing', TRUE, 7000, '2024-12-09 15:00:00'),
+('PC-007', 'Gaming', FALSE, 22000, '2024-12-01 14:00:00'),
+('PC-008', 'Office', TRUE, 11000, '2024-12-11 09:30:00'),
+('PC-009', 'Browsing', TRUE, 6000, '2024-12-14 16:00:00'),
+('PC-010', 'Gaming', TRUE, 30000, '2024-12-16 10:00:00'),
+('PC-011', 'Office', TRUE, 15000, '2024-12-13 13:00:00'),
+('PC-012', 'Browsing', TRUE, 8000, '2024-12-08 10:45:00'),
+('PC-013', 'Gaming', FALSE, 28000, '2024-12-04 18:00:00'),
+('PC-014', 'Office', TRUE, 13000, '2024-12-10 14:00:00'),
+('PC-015', 'Browsing', TRUE, 5500, '2024-12-07 12:00:00'),
+('PC-016', 'Gaming', TRUE, 24000, '2024-12-17 09:00:00'),
+('PC-017', 'Office', FALSE, 14000, '2024-12-03 11:00:00'),
+('PC-018', 'Browsing', TRUE, 7500, '2024-12-06 10:00:00'),
+('PC-019', 'Gaming', TRUE, 26000, '2024-12-02 12:00:00'),
+('PC-020', 'Office', TRUE, 12500, '2024-12-15 08:00:00');
 
 -- Insert admin data
 INSERT INTO Admin (username, password, role)
@@ -143,11 +155,19 @@ VALUES
 ('admin2', 'hashed_admin_password_2', 'Operator');
 
 -- Insert service table
-INSERT INTO Service (name, price, description)
+INSERT INTO Service (name, price, description, quantity)
 VALUES 
-('Printing', 2500, 'Black and white printing per page'),
-('Snacks', 5000, 'Pack of chips or cookies'),
-('Drinks', 3000, 'Cold or hot beverages');
+('Printing', 2500, 'Black and white printing per page', 100),
+('Snacks', 5000, 'Pack of chips or cookies', 50),
+('Drinks', 3000, 'Cold or hot beverages', 75),
+('Photocopying', 1500, 'Black and white photocopy per page', 200),
+('Laminating', 5000, 'Laminating service per page', 30),
+('Binding', 10000, 'Binding service for documents', 20),
+('Internet Access', 2000, 'Access to high-speed internet per hour', 150),
+('USB Drive', 50000, '16GB USB Drive for sale', 10),
+('Headphones', 15000, 'Headphones for rental', 20),
+('Keyboard', 10000, 'Keyboard for rental', 15),
+('Mouse', 5000, 'Mouse for rental', 25);
 
 -- Insert rental_history table
 INSERT INTO Rental_History (customer_id, computer_id, admin_id, rental_start_time, rental_end_time, total_cost)
@@ -168,12 +188,6 @@ VALUES
 (1, 'Top-up', 100000, 'Credit Card', 'Completed'),
 (2, 'Payment', 40000, 'Cash', 'Completed'),
 (3, 'Top-up', 200000, 'Stripe', 'Completed');
-
--- Insert into logs table
-INSERT INTO Log (customer_id, computer_id, login_time, logout_time, activity_description)
-VALUES 
-(1, 1, '2024-12-18 10:00:00', '2024-12-18 12:00:00', 'Gaming session'),
-(2, 2, '2024-12-18 11:00:00', '2024-12-18 13:00:00', 'Office work');
 
 -- Insert into reports table
 INSERT INTO Report (admin_id, report_type, start_date, end_date, total_transactions, total_revenue, total_rentals, top_services)
