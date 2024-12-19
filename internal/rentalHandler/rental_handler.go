@@ -2,12 +2,17 @@ package handler
 
 import (
 	"context"
-	// "fmt"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	config "w4/p2/milestones/config/database"
+
+	"github.com/midtrans/midtrans-go"
+	"github.com/midtrans/midtrans-go/coreapi"
+
+	"os"
 )
 
 // RentalRequest structure
@@ -17,7 +22,7 @@ type RentalRequest struct {
 	AdminID       int            `json:"admin_id" validate:"required"`
 	RentalStart   time.Time      `json:"rental_start" validate:"required"`
 	RentalEnd     time.Time      `json:"rental_end" validate:"required"`
-	Services      []ServiceEntry `json:"services"` // optional
+	Services      []ServiceEntry `json:"services"`
 	ActivityDesc  string         `json:"activity_description"`
 }
 
@@ -27,13 +32,27 @@ type ServiceEntry struct {
 	Quantity  int `json:"quantity" validate:"required"`
 }
 
+// Initialize Midtrans Core API client
+var coreAPI coreapi.Client
+
+func Init() {
+	// retrieve server key from .env
+	ServerKey := os.Getenv("ServerKey")
+
+	coreAPI = coreapi.Client{}
+	coreAPI.New(ServerKey, midtrans.Sandbox)
+}
+
 func RentComputer(c echo.Context) error {
+	// init midtrans coreAPI client
+	Init()
+
 	var req RentalRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request"})
 	}
 
-	// Calculate rental duration and cost (assume hourly rate is fetched from DB)
+	// Calculate rental duration and cost
 	var hourlyRate int
 	query := "SELECT hourly_rate FROM computer WHERE id = $1 AND isAvailable = TRUE"
 	err := config.Pool.QueryRow(context.Background(), query, req.ComputerID).Scan(&hourlyRate)
@@ -44,7 +63,66 @@ func RentComputer(c echo.Context) error {
 	rentalDuration := req.RentalEnd.Sub(req.RentalStart).Hours()
 	totalCost := int(rentalDuration) * hourlyRate
 
-	// Insert into Rental_History
+	// Check if user chooses to pay with wallet or GoPay
+	paymentMethod := c.QueryParam("payment_method") // "wallet" or "gopay"
+
+	if paymentMethod == "wallet" {
+		// Deduct wallet balance
+		var walletBalance float64
+		walletQuery := "SELECT wallet FROM customer WHERE id = $1"
+		err = config.Pool.QueryRow(context.Background(), walletQuery, req.CustomerID).Scan(&walletBalance)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to retrieve wallet balance"})
+		}
+
+		if walletBalance < float64(totalCost) {
+			return c.JSON(http.StatusBadRequest, map[string]string{"message": "Insufficient wallet balance"})
+		}
+
+		deductWalletQuery := "UPDATE customer SET wallet = wallet - $1 WHERE id = $2"
+		_, err = config.Pool.Exec(context.Background(), deductWalletQuery, totalCost, req.CustomerID)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to deduct wallet balance"})
+		}
+	} else if paymentMethod == "gopay" {
+		// Create payment request via GoPay
+		orderID := fmt.Sprintf("rental-%d-%d", req.CustomerID, time.Now().Unix())
+		paymentRequest := &coreapi.ChargeReq{
+			PaymentType: coreapi.PaymentTypeGopay,
+			TransactionDetails: midtrans.TransactionDetails{
+				OrderID:  orderID,
+				GrossAmt: int64(totalCost),
+			},
+			Gopay: &coreapi.GopayDetails{
+				EnableCallback: true,
+				CallbackUrl:    "https://24d5-66-96-225-168.ngrok-free.app/webhook/payment",
+			},
+		}
+
+		resp, err := coreAPI.ChargeTransaction(paymentRequest)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create GoPay payment"})
+		}
+
+		// Save transaction in the database
+		transactionQuery := `
+			INSERT INTO transaction (customer_id, transaction_type, amount, transaction_method, status, payment_url, order_id)
+			VALUES ($1, 'Rental Payment', $2, 'GoPay', 'Pending', $3, $4)`
+		_, txnErr := config.Pool.Exec(context.Background(), transactionQuery, req.CustomerID, totalCost, resp.Actions[0].URL, orderID)
+		if txnErr != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log transaction"})
+		}
+
+		// Return payment URL to the user
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"message":    "Payment initiated",
+			"payment_url": resp.Actions[0].URL,
+		})
+	} else {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid payment method"})
+	}
+
+	// Record rental history
 	var rentalHistoryID int
 	rentalHistoryQuery := `
 		INSERT INTO rental_history (customer_id, computer_id, admin_id, rental_start_time, rental_end_time, total_cost)
@@ -54,7 +132,7 @@ func RentComputer(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to record rental history"})
 	}
 
-	// Insert into Log
+	// Log rental activity
 	logQuery := `
 		INSERT INTO log (customer_id, computer_id, login_time, logout_time, activity_description)
 		VALUES ($1, $2, $3, $4, $5)`
@@ -63,7 +141,7 @@ func RentComputer(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log rental activity"})
 	}
 
-	// Insert into Rental_Services if there are additional services
+	// Log additional services if any
 	if len(req.Services) > 0 {
 		for _, service := range req.Services {
 			serviceQuery := `
@@ -76,7 +154,7 @@ func RentComputer(c echo.Context) error {
 		}
 	}
 
-	// Update Computer availability
+	// Update computer availability
 	updateComputerQuery := "UPDATE computer SET isAvailable = FALSE WHERE id = $1"
 	_, err = config.Pool.Exec(context.Background(), updateComputerQuery, req.ComputerID)
 	if err != nil {
