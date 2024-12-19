@@ -65,7 +65,9 @@ type LoginResponse struct {
 
 var jwtSecret = []byte("12345")
 
-// register user
+/* Customer Route */
+
+// register customer 
 func RegisterCustomer(c echo.Context) error {
     var req RegisterRequest 
     if err := c.Bind(&req); err != nil {
@@ -101,45 +103,6 @@ func RegisterCustomer(c echo.Context) error {
     return c.JSON(http.StatusOK, map[string]interface{}{
         "message": fmt.Sprintf(`User %s registered successfully`,req.Name),
         "email": req.Email,
-    })
-}
-
-// register admin
-func RegisterAdmin(c echo.Context) error {
-    var req RegisterRequest 
-    if err := c.Bind(&req); err != nil {
-        return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid Request"})
-    }
-
-	// hash the password
-    hashPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-    if err != nil {
-        return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
-    }
-
-    // query to insert into admin db
-	admin_query := "INSERT INTO admin (username, password, role) VALUES ($1, $2, $3) RETURNING id"
-	
-	var adminID int
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// query row 1: insert to users 
-	err = config.Pool.QueryRow(ctx, admin_query, req.Username, string(hashPassword), req.Role).Scan(&adminID)
-	if err != nil {
-		fmt.Println("Error inserting into Admin table:", err)
-
-		if pgErr, ok := err.(*pgconn.PgError); ok {
-			if pgErr.Code == "23505" {
-				return c.JSON(http.StatusBadRequest, map[string]string{"message": "Email already registered"})
-			}
-		}
-		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
-	}
-
-    return c.JSON(http.StatusOK, map[string]interface{}{
-        "message": fmt.Sprintf(`Admin %s registered successfully`,req.Username),
-        "username": req.Username,
     })
 }
 
@@ -182,6 +145,47 @@ func LoginCustomer(c echo.Context) error {
 
 	// return ok status and login response
 	return c.JSON(http.StatusOK, LoginResponse{Token: tokenString})
+}
+
+/* Admin controller */
+
+// register admin
+func RegisterAdmin(c echo.Context) error {
+    var req RegisterRequest 
+    if err := c.Bind(&req); err != nil {
+        return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid Request"})
+    }
+
+	// hash the password
+    hashPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+    if err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
+    }
+
+    // query to insert into admin db
+	admin_query := "INSERT INTO admin (username, password, role) VALUES ($1, $2, $3) RETURNING id"
+	
+	var adminID int
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// query row 1: insert to users 
+	err = config.Pool.QueryRow(ctx, admin_query, req.Username, string(hashPassword), req.Role).Scan(&adminID)
+	if err != nil {
+		fmt.Println("Error inserting into Admin table:", err)
+
+		if pgErr, ok := err.(*pgconn.PgError); ok {
+			if pgErr.Code == "23505" {
+				return c.JSON(http.StatusBadRequest, map[string]string{"message": "Email already registered"})
+			}
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Internal Server Error"})
+	}
+
+    return c.JSON(http.StatusOK, map[string]interface{}{
+        "message": fmt.Sprintf(`Admin %s registered successfully`,req.Username),
+        "role": req.Role,
+    })
 }
 
 // login admin

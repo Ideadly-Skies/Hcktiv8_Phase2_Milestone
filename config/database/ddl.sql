@@ -17,7 +17,7 @@ CREATE TABLE Customer (
     email VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     jwt_token VARCHAR(255),
-    deposit_amount DOUBLE PRECISION DEFAULT 0,
+    wallet DOUBLE PRECISION DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -116,61 +116,61 @@ CREATE TABLE Report (
     FOREIGN KEY (admin_id) REFERENCES Admin(id)
 );
 
--- insert customer data
-INSERT INTO Customer (name, username, email, password, deposit_amount)
+-- Insert customer data
+INSERT INTO Customer (name, username, email, password, wallet)
 VALUES 
-('John Doe', 'johndoe', 'john@example.com', 'hashed_password_1', 100.0),
-('Jane Smith', 'janesmith', 'jane@example.com', 'hashed_password_2', 150.0),
-('Bob Brown', 'bobbrown', 'bob@example.com', 'hashed_password_3', 200.0);
+('John Doe', 'johndoe', 'john@example.com', 'hashed_password_1', 100000),
+('Jane Smith', 'janesmith', 'jane@example.com', 'hashed_password_2', 150000),
+('Bob Brown', 'bobbrown', 'bob@example.com', 'hashed_password_3', 200000);
 
--- insert computer data
+-- Insert computer data
 INSERT INTO Computer (name, type, isAvailable, hourly_rate, last_maintenance_date)
 VALUES 
-('PC-001', 'Gaming', TRUE, 20, '2024-12-01 10:00:00'),
-('PC-002', 'Office', TRUE, 10, '2024-12-05 12:00:00'),
-('PC-003', 'Browsing', FALSE, 5, '2024-12-10 09:00:00');
+('PC-001', 'Gaming', TRUE, 20000, '2024-12-01 10:00:00'),
+('PC-002', 'Office', TRUE, 10000, '2024-12-05 12:00:00'),
+('PC-003', 'Browsing', FALSE, 5000, '2024-12-10 09:00:00');
 
--- insert admin data
+-- Insert admin data
 INSERT INTO Admin (username, password, role)
 VALUES 
 ('admin1', 'hashed_admin_password_1', 'Manager'),
 ('admin2', 'hashed_admin_password_2', 'Operator');
 
--- insert service table
+-- Insert service table
 INSERT INTO Service (name, price, description)
 VALUES 
-('Printing', 2.5, 'Black and white printing per page'),
-('Snacks', 5.0, 'Pack of chips or cookies'),
-('Drinks', 3.0, 'Cold or hot beverages');
+('Printing', 2500, 'Black and white printing per page'),
+('Snacks', 5000, 'Pack of chips or cookies'),
+('Drinks', 3000, 'Cold or hot beverages');
 
--- insert rental_history table
+-- Insert rental_history table
 INSERT INTO Rental_History (customer_id, computer_id, admin_id, rental_start_time, rental_end_time, total_cost)
 VALUES 
-(1, 1, 1, '2024-12-18 10:00:00', '2024-12-18 12:00:00', 40),
-(2, 2, 2, '2024-12-18 11:00:00', '2024-12-18 13:00:00', 20);
+(1, 1, 1, '2024-12-18 10:00:00', '2024-12-18 12:00:00', 40000),
+(2, 2, 2, '2024-12-18 11:00:00', '2024-12-18 13:00:00', 20000);
 
--- insert rental services table
+-- Insert rental services table
 INSERT INTO Rental_Services (rental_history_id, service_id, quantity)
 VALUES 
 (1, 1, 3), -- 3 printings during rental session 1
 (1, 2, 1), -- 1 snack
 (2, 3, 2); -- 2 drinks during rental session 2
 
--- insert into transactions table
+-- Insert into transactions table
 INSERT INTO Transaction (customer_id, transaction_type, amount, transaction_method, status)
 VALUES 
-(1, 'Top-up', 100.0, 'Credit Card', 'Completed'),
-(2, 'Payment', 40.0, 'Cash', 'Completed'),
-(3, 'Top-up', 200.0, 'Stripe', 'Completed');
+(1, 'Top-up', 100000, 'Credit Card', 'Completed'),
+(2, 'Payment', 40000, 'Cash', 'Completed'),
+(3, 'Top-up', 200000, 'Stripe', 'Completed');
 
--- insert into logs table
+-- Insert into logs table
 INSERT INTO Log (customer_id, computer_id, login_time, logout_time, activity_description)
 VALUES 
 (1, 1, '2024-12-18 10:00:00', '2024-12-18 12:00:00', 'Gaming session'),
 (2, 2, '2024-12-18 11:00:00', '2024-12-18 13:00:00', 'Office work');
 
--- insert into reports table
+-- Insert into reports table
 INSERT INTO Report (admin_id, report_type, start_date, end_date, total_transactions, total_revenue, total_rentals, top_services)
 VALUES 
-(1, 'Daily Revenue Report', '2024-12-18 00:00:00', '2024-12-18 23:59:59', 3, 340.0, 2, 'Printing, Snacks'),
-(2, 'Service Usage Report', '2024-12-18 00:00:00', '2024-12-18 23:59:59', 0, 0.0, 0, 'Snacks, Drinks');
+(1, 'Daily Revenue Report', '2024-12-18 00:00:00', '2024-12-18 23:59:59', 3, 340000, 2, 'Printing, Snacks'),
+(2, 'Service Usage Report', '2024-12-18 00:00:00', '2024-12-18 23:59:59', 0, 0, 0, 'Snacks, Drinks');
