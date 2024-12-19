@@ -6,7 +6,9 @@ import (
 	cust_middleware "w4/p2/milestones/internal/middleware"
 	transaction_handler "w4/p2/milestones/internal/transactionHandler"
 	rental_handler "w4/p2/milestones/internal/rentalHandler"
-	report_handler "w4/p2/milestones/internal/reportHandler"	
+	report_handler_user "w4/p2/milestones/internal/reportHandler/user"	
+	report_handler_admin "w4/p2/milestones/internal/reportHandler/admin"
+	
 	service_handler "w4/p2/milestones/internal/serviceHandler"
 
 	"github.com/labstack/echo/v4"
@@ -15,7 +17,7 @@ import (
 
 func main(){
 	// migrate data to supabase
-	config.MigrateData()
+	// config.MigrateData()
 
 	// connect to db
 	config.InitDB()
@@ -40,7 +42,7 @@ func main(){
 	customerGroup.GET("/wallet/balance", transaction_handler.GetWalletBalance)
 	customerGroup.POST("/wallet/payment", transaction_handler.CreatePayment)
 	customerGroup.GET("/wallet/payment-status/:orderID", transaction_handler.CheckPaymentStatus)
-	customerGroup.GET("/booking/report", report_handler.GetBookingReport)
+	customerGroup.GET("/booking/report", report_handler_user.GetBookingReport)
 
 	// protected routes for admin using JWT middleware
 	adminGroup := e.Group("/admin")
@@ -48,6 +50,7 @@ func main(){
 
 	adminGroup.POST("/rental", rental_handler.RentComputer)
 	adminGroup.POST("/service/purchase", service_handler.PurchaseService)
+	adminGroup.POST("/report/revenue", report_handler_admin.GenerateRevenueReport)	
 
 	// start the server at 8080
 	e.Logger.Fatal(e.Start(":8080"))
