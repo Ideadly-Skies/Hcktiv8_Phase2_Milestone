@@ -52,6 +52,7 @@ CREATE TABLE Rental_History (
     rental_start_time TIMESTAMP NOT NULL,
     rental_end_time TIMESTAMP NOT NULL,
     total_cost INTEGER NOT NULL,
+    booking_status VARCHAR(100) DEFAULT 'Pending',
     FOREIGN KEY (customer_id) REFERENCES Customer(id),
     FOREIGN KEY (computer_id) REFERENCES Computer(id),
     FOREIGN KEY (admin_id) REFERENCES Admin(id)
@@ -66,6 +67,8 @@ CREATE TABLE Transaction (
     transaction_method VARCHAR(100),
     transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(100) NOT NULL,
+    order_id VARCHAR(100) UNIQUE,
+    payment_url VARCHAR(255),
     FOREIGN KEY (customer_id) REFERENCES Customer(id)
 );
 

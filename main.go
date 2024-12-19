@@ -35,7 +35,8 @@ func main(){
 	customerGroup.Use(cust_middleware.JWTMiddleware)
 
 	customerGroup.GET("/wallet/balance", transaction_handler.GetWalletBalance)
-	customerGroup.POST("/wallet/topup", transaction_handler.TopUpWallet)
+	customerGroup.POST("/wallet/payment", transaction_handler.CreatePayment)
+	customerGroup.GET("/wallet/payment-status/:orderID", transaction_handler.CheckPaymentStatus)
 
 	// start the server at 8080
 	e.Logger.Fatal(e.Start(":8080"))
