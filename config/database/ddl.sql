@@ -96,7 +96,7 @@ CREATE TABLE Service (
 -- 8. Rental_Services Table
 CREATE TABLE Rental_Services (
     id SERIAL PRIMARY KEY,
-    rental_history_id INTEGER NOT NULL,
+    rental_history_id INTEGER,
     service_id INTEGER NOT NULL,
     quantity INTEGER DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -118,6 +118,9 @@ CREATE TABLE Report (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (admin_id) REFERENCES Admin(id)
 );
+
+-- to insert metadata column into transaction
+ALTER TABLE transaction ADD COLUMN metadata JSONB DEFAULT '{}'::JSONB;
 
 -- Insert customer data
 INSERT INTO Customer (name, username, email, password, wallet)

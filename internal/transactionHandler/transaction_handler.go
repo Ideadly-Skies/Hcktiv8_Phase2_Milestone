@@ -7,6 +7,7 @@ import (
 	"time"
 
 	config "w4/p2/milestones/config/database"
+	"encoding/json"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"
@@ -140,16 +141,22 @@ func CheckPaymentStatus(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to update transaction"})
 	}
 
+	// print the transaction status for debugging
+	fmt.Println("resp transaction status: ", resp.TransactionStatus)
+
 	// Handle successful payment
 	if resp.TransactionStatus == "settlement" {
 		// Fetch transaction type and customer ID from the database
 		var transactionType string
 		var customerID int
+		
 		transactionQuery := `SELECT transaction_type, customer_id FROM transaction WHERE order_id = $1`
 		err := config.Pool.QueryRow(context.Background(), transactionQuery, orderID).Scan(&transactionType, &customerID)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to fetch transaction details"})
 		}
+
+		fmt.Println("transaction type: ", transactionType)
 
 		// update wallet for top up
 		if transactionType == "Top-Up" {
@@ -158,7 +165,73 @@ func CheckPaymentStatus(c echo.Context) error {
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to update wallet balance"})
 			}
-		}
+		} else if transactionType == "Rental Payment" {
+			// Fetch metadata and deserialize
+			var metadataJSON string
+			metadataQuery := `SELECT metadata FROM transaction WHERE order_id = $1`
+			err := config.Pool.QueryRow(context.Background(), metadataQuery, orderID).Scan(&metadataJSON)
+			
+			// fmt.Println("first err: ", err)
+			
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to fetch rental metadata"})
+			}
+		
+			// Deserialize JSON into a map
+			var metadata map[string]interface{}
+			err = json.Unmarshal([]byte(metadataJSON), &metadata)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to parse rental metadata"})
+			}
+			
+			// fmt.Println("second err: ", err)	
+
+			// Validate and convert metadata fields
+			computerID, ok := metadata["computer_id"].(float64) // JSON numbers are float64 in Go
+			
+			// fmt.Println("third err: ", ok)				
+
+			if !ok {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Invalid computer_id in metadata"})
+			}
+		
+			rentalStart, ok := metadata["rental_start"].(string)
+			
+			// fmt.Println("fourth err: ", ok)
+
+			if !ok {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Invalid rental_start in metadata"})
+			}
+		
+			rentalEnd, ok := metadata["rental_end"].(string)
+
+			// fmt.Println("fifth err: ", ok)
+
+			if !ok {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Invalid rental_end in metadata"})
+			}
+			
+			activityDesc, ok := metadata["activity_desc"].(string)
+			
+			// fmt.Println("sixth err: ", ok)
+			
+			if !ok {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Invalid activity_desc in metadata"})
+			}
+		
+			// Log rental activity
+			logQuery := `
+				INSERT INTO log (customer_id, computer_id, login_time, logout_time, activity_description)
+				VALUES ($1, $2, $3, $4, $5)`
+			_, err = config.Pool.Exec(context.Background(), logQuery, 
+				customerID, int(computerID), rentalStart, rentalEnd, activityDesc)
+			
+			// fmt.Println("seventh err: ", err)
+			
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log rental activity"})
+			}
+		} 
 	}
 
 	return c.JSON(http.StatusOK, resp)

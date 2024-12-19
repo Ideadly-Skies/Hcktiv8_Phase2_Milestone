@@ -14,7 +14,7 @@ import (
 
 func main(){
 	// migrate data to supabase
-	// config.MigrateData()
+	config.MigrateData()
 
 	// connect to db
 	config.InitDB()
@@ -40,7 +40,7 @@ func main(){
 	customerGroup.POST("/wallet/payment", transaction_handler.CreatePayment)
 	customerGroup.GET("/wallet/payment-status/:orderID", transaction_handler.CheckPaymentStatus)
 	customerGroup.GET("/booking/report", report_handler.GetBookingReport)
-	
+
 	// protected routes for admin using JWT middleware
 	adminGroup := e.Group("/admin")
 	adminGroup.Use(cust_middleware.JWTMiddleware)

@@ -196,8 +196,8 @@ func LoginAdmin(c echo.Context) error {
 	}
 	
 	var admin Admin 
-	query := "SELECT id, username, password FROM admin WHERE username = $1"
-	err := config.Pool.QueryRow(context.Background(), query, req.Username).Scan(&admin.ID, &admin.Username, &admin.Password)
+	query := "SELECT id, username, password, role FROM admin WHERE username = $1"
+	err := config.Pool.QueryRow(context.Background(), query, req.Username).Scan(&admin.ID, &admin.Username, &admin.Password, &admin.Role)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid email or password"})
 	}
@@ -210,7 +210,8 @@ func LoginAdmin(c echo.Context) error {
 	// create new jwt claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"admin_id": admin.ID,
-		"exp":     jwt.NewNumericDate(time.Now().Add(72 * time.Hour)), // Use `jwt.NewNumericDate` for expiry
+		"role": admin.Role,
+		"exp": jwt.NewNumericDate(time.Now().Add(72 * time.Hour)), // Use `jwt.NewNumericDate` for expiry
 	})
 	
 	tokenString, err := token.SignedString(jwtSecret)
