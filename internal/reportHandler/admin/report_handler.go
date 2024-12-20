@@ -77,12 +77,13 @@ func GenerateRevenueReport(c echo.Context) error {
 	// Query total revenue and total transactions
 	var totalRevenue float64
 	var totalTransactions int
+	// Query total revenue and total transactions
 	query := `
-		SELECT SUM(amount) AS total_revenue, COUNT(*) AS total_transactions
+		SELECT COALESCE(SUM(amount), 0) AS total_revenue, COALESCE(COUNT(*), 0) AS total_transactions
 		FROM transaction
-		WHERE transaction_date BETWEEN $1 AND $2 AND status ILIKE 'Settlement'`
+		WHERE transaction_date BETWEEN $1 AND $2 AND status ILIKE 'Settlement'
+	`
 	err = config.Pool.QueryRow(context.Background(), query, startDate, endDate).Scan(&totalRevenue, &totalTransactions)
-	fmt.Println("error: ", err)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to generate report"})
 	}
@@ -119,6 +120,15 @@ func GenerateRevenueReport(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to parse top services"})
 		}
 		topServices = append(topServices, service)
+	}
+
+	// Ensure `topServices` is not nil even if no rows are returned
+	if topServices == nil {
+		topServices = []struct {
+			ServiceName  string  `json:"service_name"`
+			TotalRevenue float64 `json:"total_revenue"`
+			TotalSold    int     `json:"total_sold"`
+		}{}
 	}
 
 	// Insert report into the report table
