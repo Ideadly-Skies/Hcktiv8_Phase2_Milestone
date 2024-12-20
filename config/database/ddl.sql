@@ -187,7 +187,8 @@ INSERT INTO Transaction (customer_id, transaction_type, amount, transaction_meth
 VALUES 
 (1, 'Top-up', 100000, 'Credit Card', 'Completed'),
 (2, 'Payment', 40000, 'Cash', 'Completed'),
-(3, 'Top-up', 200000, 'Stripe', 'Completed');
+(3, 'Top-up', 200000, 'Stripe', 'Completed'),
+(1, 'Payment', 50000, 'Credit Card', 'Settlement');
 
 -- Insert into reports table
 INSERT INTO Report (admin_id, report_type, start_date, end_date, total_transactions, total_revenue, total_rentals, top_services)
