@@ -1,11 +1,11 @@
 # Use Go base image
-FROM golang:1.23
+FROM golang:latest
 
 # Set working directory
 WORKDIR /app
 
 # Copy and install dependencies
-COPY go.mod go.sum ./:
+COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy the source code
