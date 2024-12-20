@@ -256,6 +256,7 @@ func CheckPaymentStatus(c echo.Context) error {
 			var metadataJSON string
 			metadataQuery := `SELECT metadata FROM transaction WHERE order_id = $1`
 			err := config.Pool.QueryRow(context.Background(), metadataQuery, orderID).Scan(&metadataJSON)
+			fmt.Println("error invoked from check payment status: ", err)	
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to fetch metadata"})
 			}
@@ -270,11 +271,31 @@ func CheckPaymentStatus(c echo.Context) error {
 			for _, service := range metadata {
 				serviceID := int(service["service_id"].(float64))
 				quantity := int(service["quantity"].(float64))
-		
+				
+				// update quantity of said product
 				updateQuantityQuery := "UPDATE service SET quantity = quantity - $1 WHERE id = $2"
 				_, err = config.Pool.Exec(context.Background(), updateQuantityQuery, quantity, serviceID)
 				if err != nil {
 					return c.JSON(http.StatusInternalServerError, map[string]string{"message": fmt.Sprintf("Failed to update quantity for Service ID %d", serviceID)})
+				}
+
+				// Log the service purchase in the log table
+				logDesc := fmt.Sprintf("Customer %d purchased Service ID %d (Quantity: %d)", customerID, serviceID, quantity)
+				logQuery := `INSERT INTO log (description) VALUES ($1)`
+				_, err = config.Pool.Exec(context.Background(), logQuery, logDesc)
+				if err != nil {
+					return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log service purchase"})
+				}
+				
+				// Insert into the rental_services table (optional if related to a rental)
+				rentalServiceQuery := `
+					INSERT INTO rental_services (service_id, quantity, created_at)
+					VALUES ($1, $2, NOW())`
+				_, err = config.Pool.Exec(context.Background(), rentalServiceQuery, serviceID, quantity)
+				if err != nil {
+					return c.JSON(http.StatusInternalServerError, map[string]string{
+						"message": fmt.Sprintf("Failed to log service into rental_services for Service ID %d", serviceID),
+					})
 				}
 			}
 		}

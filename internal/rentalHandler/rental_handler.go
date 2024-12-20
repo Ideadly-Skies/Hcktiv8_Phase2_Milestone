@@ -102,7 +102,7 @@ func RentComputer(c echo.Context) error {
         // Log wallet payment in transaction table
         transactionQuery := `
             INSERT INTO transaction (customer_id, transaction_type, amount, transaction_method, status, transaction_date)
-            VALUES ($1, 'Rental Payment', $2, 'Wallet', 'Settlement', NOW())`
+            VALUES ($1, 'Rental Payment', $2, 'Wallet', 'settlement', NOW())`
         
         _, txnErr := config.Pool.Exec(context.Background(), transactionQuery, req.CustomerID, totalCost)
         if txnErr != nil {
@@ -160,7 +160,7 @@ func RentComputer(c echo.Context) error {
     rentalHistoryQuery := `
         INSERT INTO rental_history (customer_id, computer_id, admin_id, rental_start_time, rental_end_time, total_cost, booking_status)
         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`        
-    err = config.Pool.QueryRow(context.Background(), rentalHistoryQuery, req.CustomerID, req.ComputerID, adminID, req.RentalStart, req.RentalEnd, totalCost, "Settlement").Scan(&rentalHistoryID)
+    err = config.Pool.QueryRow(context.Background(), rentalHistoryQuery, req.CustomerID, req.ComputerID, adminID, req.RentalStart, req.RentalEnd, totalCost, "settlement").Scan(&rentalHistoryID)
     if err != nil {
         return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to record rental history"})
     }
@@ -216,12 +216,12 @@ func RentComputer(c echo.Context) error {
             }
 
             // Log the service details in the Log table
-            serviceDesc := fmt.Sprintf("Service added for Rental %d: Service ID %d with Quantity %d",
-                rentalHistoryID, service.ServiceID, service.Quantity)
+            logDesc := fmt.Sprintf("Customer %d purchased Service ID %d (Quantity: %d)",
+                req.CustomerID, service.ServiceID, service.Quantity)
             logQuery := `INSERT INTO log (description) VALUES ($1)`
-            _, err = config.Pool.Exec(context.Background(), logQuery, serviceDesc)
+            _, err = config.Pool.Exec(context.Background(), logQuery, logDesc)
             if err != nil {
-                return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log service details"})
+                return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log service purchase"})
             }
         }
     }

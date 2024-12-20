@@ -103,18 +103,39 @@ func PurchaseService(c echo.Context) error {
             return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to deduct wallet balance"})
         }
 
+        // update the quantity of the services and insert into log table
         for _, service := range req.Services {
             updateQuantityQuery := "UPDATE service SET quantity = quantity - $1 WHERE id = $2"
             _, err = config.Pool.Exec(context.Background(), updateQuantityQuery, service.Quantity, service.ServiceID)
             if err != nil {
                 return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to update service quantity"})
             }
+
+            // Log the service purchase
+            logDesc := fmt.Sprintf("Customer %d purchased Service ID %d (Quantity: %d)",
+                req.CustomerID, service.ServiceID, service.Quantity)
+            logQuery := `INSERT INTO log (description) VALUES ($1)`
+            _, err = config.Pool.Exec(context.Background(), logQuery, logDesc)
+            if err != nil {
+                return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log service purchase"})
+            }
+
+            // Insert into the rental_services table
+            rentalServiceQuery := `
+                INSERT INTO rental_services (rental_history_id, service_id, quantity, created_at)
+                VALUES (NULL, $1, $2, NOW())`
+            _, err = config.Pool.Exec(context.Background(), rentalServiceQuery, service.ServiceID, service.Quantity)
+            if err != nil {
+                return c.JSON(http.StatusInternalServerError, map[string]string{
+                    "message": fmt.Sprintf("Failed to log service into rental_services for Service ID %d", service.ServiceID),
+                })
+            }
         }
 
         // Log transaction
         transactionQuery := `
             INSERT INTO transaction (customer_id, transaction_type, amount, transaction_method, status, transaction_date)
-            VALUES ($1, 'Service Payment', $2, 'Wallet', 'Settlement', NOW())`
+            VALUES ($1, 'Service Payment', $2, 'Wallet', 'settlement', NOW())`
         _, txnErr := config.Pool.Exec(context.Background(), transactionQuery, req.CustomerID, totalCost)
         if txnErr != nil {
             return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log transaction"})

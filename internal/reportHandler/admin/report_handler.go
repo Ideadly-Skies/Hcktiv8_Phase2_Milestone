@@ -2,12 +2,14 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	// "fmt"
 	"net/http"
 	"time"
+	"encoding/json"
 
-	"github.com/labstack/echo/v4"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/labstack/echo/v4"
 
 	config "w4/p2/milestones/config/database"
 )
@@ -50,6 +52,7 @@ func GenerateRevenueReport(c echo.Context) error {
 	user := c.Get("user").(*jwt.Token)
 	claims := user.Claims.(jwt.MapClaims)
 	adminRole := claims["role"].(string)
+	adminID := int(claims["admin_id"].(float64))
 
 	// Check if the user is a super-admin
 	if adminRole != "super-admin" {
@@ -64,8 +67,9 @@ func GenerateRevenueReport(c echo.Context) error {
 	query := `
 		SELECT SUM(amount) AS total_revenue, COUNT(*) AS total_transactions
 		FROM transaction
-		WHERE transaction_date BETWEEN $1 AND $2 AND status = 'Settlement'`
+		WHERE transaction_date BETWEEN $1 AND $2 AND status ILIKE 'Settlement'`
 	err = config.Pool.QueryRow(context.Background(), query, startDate, endDate).Scan(&totalRevenue, &totalTransactions)
+	fmt.Println("error: ", err)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to generate report"})
 	}
@@ -102,6 +106,30 @@ func GenerateRevenueReport(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to parse top services"})
 		}
 		topServices = append(topServices, service)
+	}
+
+	// Insert report into the report table
+	reportQuery := `
+		INSERT INTO report (admin_id, report_type, start_date, end_date, total_transactions, total_revenue, top_services, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`
+	topServicesJSON, err := json.Marshal(topServices)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to serialize top services"})
+	}
+
+	_, err = config.Pool.Exec(context.Background(), reportQuery, adminID, "Revenue Report", startDate, endDate, totalTransactions, totalRevenue, string(topServicesJSON))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to save report"})
+	}
+
+	// Log the admin action in the log table
+	logQuery := `
+		INSERT INTO log (description)
+		VALUES ($1)`
+	logDescription := fmt.Sprintf("Super-admin (ID: %d) generated a revenue report for %s to %s", adminID, req.StartDate, req.EndDate)
+	_, err = config.Pool.Exec(context.Background(), logQuery, logDescription)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to log admin action"})
 	}
 
 	// Construct the response
