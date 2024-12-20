@@ -19,7 +19,7 @@ import (
 
 func main(){
 	// migrate data to supabase
-	// config.MigrateData()
+	config.MigrateData()
 
 	// connect to db
 	config.InitDB()
