@@ -24,7 +24,17 @@ type BookingReport struct {
 	TotalCost      float64 `json:"total_cost"`
 }
 
-// GetBookingReport fetches booking history for a customer
+// GetBookingReport godoc
+// @Summary Get booking report
+// @Description Retrieve a customer's booking history, including details of rentals and costs. Optionally fetch only the most recent booking.
+// @Tags Reports
+// @Accept json
+// @Produce json
+// @Param recent query string false "If set to 'true', fetches only the most recent booking"
+// @Success 200 {object} map[string]interface{} "Booking report retrieved successfully"
+// @Failure 500 {object} map[string]string "Failed to fetch or process booking report data"
+// @Security BearerAuth
+// @Router /booking-report [get]
 func GetBookingReport(c echo.Context) error {
 	// Extract customer ID from the JWT claims
 	user := c.Get("user").(*jwt.Token)

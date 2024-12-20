@@ -44,6 +44,17 @@ func Init() {
 	coreAPI.New(ServerKey, midtrans.Sandbox)
 }
 
+// RentComputer handles the rental process
+// @Summary Rent a computer with optional services
+// @Description Rent a computer and optionally purchase additional services
+// @Tags Rentals
+// @Accept json
+// @Produce json
+// @Param rentalRequest body RentalRequest true "Rental Details"
+// @Success 200 {object} map[string]interface{} "Rental successful response"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /rental [post]
 func RentComputer(c echo.Context) error {
     // Initialize Midtrans CoreAPI client
     Init()

@@ -31,6 +31,19 @@ type RevenueReportResponse struct {
 	} `json:"top_services"`
 }
 
+// GenerateRevenueReport godoc
+// @Summary Generate revenue report
+// @Description Allows super-admins to generate a revenue report for a specified date range, including total revenue, transactions, and top services.
+// @Tags Reports
+// @Accept json
+// @Produce json
+// @Param body body RevenueReportRequest true "Request body with start_date and end_date"
+// @Success 200 {object} RevenueReportResponse
+// @Failure 400 {object} map[string]string "Invalid request payload or date format"
+// @Failure 403 {object} map[string]string "Unauthorized action. Only super-admins can generate reports."
+// @Failure 500 {object} map[string]string "Failed to generate report or perform internal operation"
+// @Security BearerAuth
+// @Router /revenue-report [post]
 func GenerateRevenueReport(c echo.Context) error {
 	// Bind and validate request payload
 	var req RevenueReportRequest

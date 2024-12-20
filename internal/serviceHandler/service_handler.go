@@ -27,18 +27,31 @@ func Init() {
 	coreAPI.New(ServerKey, midtrans.Sandbox)
 }
 
+type ServiceRequest struct {
+    CustomerID int               `json:"customer_id"`
+    Services   []struct {
+        ServiceID int `json:"service_id"`
+        Quantity  int `json:"quantity"`
+    } `json:"services"`
+    PaymentMethod string `json:"payment_method"`
+}
+
+// PurchaseService godoc
+// @Summary Purchase services
+// @Description Allows customers to purchase services using either wallet or GoPay as the payment method. The endpoint validates admin roles.
+// @Tags Services
+// @Accept json
+// @Produce json
+// @Param request body ServiceRequest true "Request Body"
+// @Success 200 {object} map[string]interface{} "Services purchased successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 403 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /services/purchase [post]
 func PurchaseService(c echo.Context) error {
     // init coreAPI
     Init()
-
-    type ServiceRequest struct {
-        CustomerID int               `json:"customer_id"`
-        Services   []struct {
-            ServiceID int `json:"service_id"`
-            Quantity  int `json:"quantity"`
-        } `json:"services"`
-        PaymentMethod string `json:"payment_method"`
-    }
 
     var req ServiceRequest
     if err := c.Bind(&req); err != nil {

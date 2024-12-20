@@ -10,6 +10,8 @@ import (
 	report_handler_admin "w4/p2/milestones/internal/reportHandler/admin"
 	
 	service_handler "w4/p2/milestones/internal/serviceHandler"
+	_ "w4/p2/milestones/docs"
+	"github.com/swaggo/echo-swagger"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -51,6 +53,9 @@ func main(){
 	adminGroup.POST("/rental", rental_handler.RentComputer)
 	adminGroup.POST("/service/purchase", service_handler.PurchaseService)
 	adminGroup.POST("/report/revenue", report_handler_admin.GenerateRevenueReport)	
+
+	// swagger documentation
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	// start the server at 8080
 	e.Logger.Fatal(e.Start(":8080"))

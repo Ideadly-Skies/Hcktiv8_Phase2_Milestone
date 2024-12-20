@@ -67,7 +67,17 @@ var jwtSecret = []byte("12345")
 
 /* Customer Route */
 
-// register customer 
+// RegisterCustomer godoc
+// @Summary Register a new customer
+// @Description Register a new customer with name, username, email, and password
+// @Tags Customer
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "Register customer request"
+// @Success 200 {object} map[string]interface{} "Successful registration message"
+// @Failure 400 {object} map[string]string "Invalid request or email already registered"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /customer/register [post]
 func RegisterCustomer(c echo.Context) error {
     var req RegisterRequest 
     if err := c.Bind(&req); err != nil {
@@ -114,7 +124,17 @@ func RegisterCustomer(c echo.Context) error {
     })
 }
 
-// login customer
+// LoginCustomer godoc
+// @Summary Log in a customer
+// @Description Authenticate a customer with email and password and return a JWT token
+// @Tags Customer
+// @Accept json
+// @Produce json
+// @Param request body LoginRequestUser true "Login customer request"
+// @Success 200 {object} LoginResponse "JWT token response"
+// @Failure 400 {object} map[string]string "Invalid email or password"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /customer/login [post]
 func LoginCustomer(c echo.Context) error {
 	var req LoginRequestUser
 	if err := c.Bind(&req); err != nil {
@@ -165,7 +185,17 @@ func LoginCustomer(c echo.Context) error {
 
 /* Admin controller */
 
-// register admin
+// RegisterAdmin godoc
+// @Summary Register a new admin
+// @Description Register a new admin with username, password, and role
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "Register admin request"
+// @Success 200 {object} map[string]interface{} "Successful registration message"
+// @Failure 400 {object} map[string]string "Invalid request or email already registered"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /admin/register [post]
 func RegisterAdmin(c echo.Context) error {
     var req RegisterRequest 
     if err := c.Bind(&req); err != nil {
@@ -212,7 +242,18 @@ func RegisterAdmin(c echo.Context) error {
     })
 }
 
-// login admin
+// LoginAdmin godoc
+// @Summary Log in an admin
+// @Description Authenticate an admin with username and password and return a JWT token
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Param request body LoginRequestAdmin true "Login admin request"
+// @Success 200 {object} LoginResponse "JWT token response"
+// @Failure 400 {object} map[string]string "Invalid username or password"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /admin/login [post]
+
 func LoginAdmin(c echo.Context) error {
 	var req LoginRequestAdmin
 	if err := c.Bind(&req); err != nil {

@@ -1,0 +1,477 @@
+definitions:
+  handler.LoginRequestUser:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  handler.LoginResponse:
+    properties:
+      token:
+        type: string
+    type: object
+  handler.PaymentRequest:
+    properties:
+      amount:
+        type: number
+      purpose:
+        description: Either "Top-Up" or "Rental Payment"
+        type: string
+    required:
+    - amount
+    - purpose
+    type: object
+  handler.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      role:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - name
+    - password
+    - role
+    - username
+    type: object
+  handler.RentalRequest:
+    properties:
+      activity_description:
+        type: string
+      admin_id:
+        type: integer
+      computer_id:
+        type: integer
+      customer_id:
+        type: integer
+      rental_end:
+        type: string
+      rental_start:
+        type: string
+      services:
+        items:
+          $ref: '#/definitions/handler.ServiceEntry'
+        type: array
+    required:
+    - admin_id
+    - computer_id
+    - customer_id
+    - rental_end
+    - rental_start
+    type: object
+  handler.RevenueReportRequest:
+    properties:
+      end_date:
+        type: string
+      start_date:
+        type: string
+    required:
+    - end_date
+    - start_date
+    type: object
+  handler.RevenueReportResponse:
+    properties:
+      top_services:
+        items:
+          properties:
+            service_name:
+              type: string
+            total_revenue:
+              type: number
+            total_sold:
+              type: integer
+          type: object
+        type: array
+      total_revenue:
+        type: number
+      total_transactions:
+        type: integer
+    type: object
+  handler.ServiceEntry:
+    properties:
+      quantity:
+        type: integer
+      service_id:
+        type: integer
+    required:
+    - quantity
+    - service_id
+    type: object
+  handler.ServiceRequest:
+    properties:
+      customer_id:
+        type: integer
+      payment_method:
+        type: string
+      services:
+        items:
+          properties:
+            quantity:
+              type: integer
+            service_id:
+              type: integer
+          type: object
+        type: array
+    type: object
+  handler.WalletBalanceResponse:
+    properties:
+      balance:
+        type: number
+    type: object
+info:
+  contact: {}
+paths:
+  /admin/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new admin with username, password, and role
+      parameters:
+      - description: Register admin request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful registration message
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request or email already registered
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register a new admin
+      tags:
+      - Admin
+  /booking-report:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a customer's booking history, including details of rentals
+        and costs. Optionally fetch only the most recent booking.
+      parameters:
+      - description: If set to 'true', fetches only the most recent booking
+        in: query
+        name: recent
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Booking report retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch or process booking report data
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get booking report
+      tags:
+      - Reports
+  /customer/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a customer with email and password and return a JWT
+        token
+      parameters:
+      - description: Login customer request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LoginRequestUser'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT token response
+          schema:
+            $ref: '#/definitions/handler.LoginResponse'
+        "400":
+          description: Invalid email or password
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Log in a customer
+      tags:
+      - Customer
+  /customer/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new customer with name, username, email, and password
+      parameters:
+      - description: Register customer request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful registration message
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request or email already registered
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register a new customer
+      tags:
+      - Customer
+  /payment/create:
+    post:
+      consumes:
+      - application/json
+      description: Allows customers to create payment requests (e.g., Top-Up)
+      parameters:
+      - description: Payment request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.PaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment request details
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a payment request
+      tags:
+      - Transactions
+  /payment/status/{orderID}:
+    get:
+      description: Manually check the status of a payment using the order ID
+      parameters:
+      - description: Order ID
+        in: path
+        name: orderID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment status details
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Check payment status
+      tags:
+      - Transactions
+  /rental:
+    post:
+      consumes:
+      - application/json
+      description: Rent a computer and optionally purchase additional services
+      parameters:
+      - description: Rental Details
+        in: body
+        name: rentalRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RentalRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Rental successful response
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Rent a computer with optional services
+      tags:
+      - Rentals
+  /revenue-report:
+    post:
+      consumes:
+      - application/json
+      description: Allows super-admins to generate a revenue report for a specified
+        date range, including total revenue, transactions, and top services.
+      parameters:
+      - description: Request body with start_date and end_date
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RevenueReportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.RevenueReportResponse'
+        "400":
+          description: Invalid request payload or date format
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Unauthorized action. Only super-admins can generate reports.
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Failed to generate report or perform internal operation
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Generate revenue report
+      tags:
+      - Reports
+  /services/purchase:
+    post:
+      consumes:
+      - application/json
+      description: Allows customers to purchase services using either wallet or GoPay
+        as the payment method. The endpoint validates admin roles.
+      parameters:
+      - description: Request Body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ServiceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Services purchased successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Purchase services
+      tags:
+      - Services
+  /wallet/balance:
+    get:
+      description: Fetch the wallet balance of the authenticated customer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Customer's wallet balance
+          schema:
+            $ref: '#/definitions/handler.WalletBalanceResponse'
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get wallet balance
+      tags:
+      - Transactions
+swagger: "2.0"

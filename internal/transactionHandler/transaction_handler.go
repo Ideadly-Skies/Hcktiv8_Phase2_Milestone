@@ -39,7 +39,15 @@ func Init() {
 	coreAPI.New(ServerKey, midtrans.Sandbox)
 }
 
-// Get wallet balance
+// GetWalletBalance godoc
+// @Summary Get wallet balance
+// @Description Fetch the wallet balance of the authenticated customer
+// @Tags Transactions
+// @Produce json
+// @Success 200 {object} WalletBalanceResponse "Customer's wallet balance"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /wallet/balance [get]
 func GetWalletBalance(c echo.Context) error {
 	// Extract customer ID from JWT claims
 	user := c.Get("user").(*jwt.Token)
@@ -58,7 +66,18 @@ func GetWalletBalance(c echo.Context) error {
 	return c.JSON(http.StatusOK, WalletBalanceResponse{Balance: balance})
 }
 
-// Create Payment Request (Made for Top-up payment) 
+// CreatePayment godoc
+// @Summary Create a payment request
+// @Description Allows customers to create payment requests (e.g., Top-Up)
+// @Tags Transactions
+// @Accept json
+// @Produce json
+// @Param request body PaymentRequest true "Payment request body"
+// @Success 200 {object} map[string]interface{} "Payment request details"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /payment/create [post]
 func CreatePayment(c echo.Context) error {
 	// Initialize Midtrans
 	Init()
@@ -121,7 +140,16 @@ func CreatePayment(c echo.Context) error {
 	})
 }
 
-// Manual Payment Status Check
+// CheckPaymentStatus godoc
+// @Summary Check payment status
+// @Description Manually check the status of a payment using the order ID
+// @Tags Transactions
+// @Produce json
+// @Param orderID path string true "Order ID"
+// @Success 200 {object} map[string]interface{} "Payment status details"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /payment/status/{orderID} [get]
 func CheckPaymentStatus(c echo.Context) error {
 	// initialize midtrans api
 	Init()	
